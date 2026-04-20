@@ -1,5 +1,6 @@
 const MARLON_EMAIL = "marlonbbernal@gmail.com";
 const MARLON_LOCATION = "Morong, Rizal, Philippines";
+const IDENTITY_REPLY = "My name is Marlon B. Bernal.";
 const SCOPE_REPLY =
   "I can answer job-interview questions about my work, skills, projects, and professional background. Is there something specific about my experience I can help with?";
 
@@ -144,6 +145,11 @@ function hasForbiddenModelSelfDescription(reply: string): boolean {
     /\bi\s+(can|could)\s+answer\s+questions\s+about\s+my\s+(capabilities|knowledge\s+base)\b/,
     /\b(capabilities\s+and\s+knowledge\s+base|provided\s+information\s+about\s+marlon)\b/,
     /\bknowledge\s+base\b/,
+    /\bmy\s+name\s+is\s+a\s+persona\b/,
+    /\bpersona\s+based\s+on\s+(the\s+)?professional\s+experience\b/,
+    /\bprofessional\s+experience\s+and\s+capabilities\s+described\b/,
+    /\btechnical\s+skills\s+and\s+work\s+history\b/,
+    /\bfocus\s+on\s+answering\s+questions\s+about\s+my\s+technical\s+skills\b/,
   ]);
 }
 
@@ -160,11 +166,11 @@ export function getDirectReply(message: string): string | undefined {
   }
 
   if (isAssistantIdentityQuestion(text) || isModelIdentityQuestion(text)) {
-    return "My name is Marlon B. Bernal. I'm a senior full-stack and mobile engineer, and I can answer job-interview questions about my work, skills, projects, and professional background.";
+    return IDENTITY_REPLY;
   }
 
   if (isMarlonNameQuestion(text)) {
-    return "My full name is Marlon B. Bernal.";
+    return IDENTITY_REPLY;
   }
 
   if (isLocationQuestion(text)) {
@@ -209,6 +215,6 @@ export function sanitizeReply(message: string, reply: string): string {
 
   return (
     getDirectReply(message) ??
-    "My name is Marlon B. Bernal. I'm a senior full-stack and mobile engineer, and I can answer job-interview questions about my work, skills, projects, and professional background."
+    IDENTITY_REPLY
   );
 }
