@@ -465,6 +465,10 @@ Relevant public links include Smart POS PH at https://smart-pos.aiautomated.uk/,
 
 I've worked as an independent software engineer and contract developer since January 2021. For current availability, schedule, rates, or project fit, contact me directly at marlonbbernal@gmail.com.
 
+### 36a. Are you currently employed?
+
+I currently work independently as a software engineer, contract developer, and product builder. I've been self-employed on project-based contracts and product development since January 2021. For current availability or interview scheduling, contact me at marlonbbernal@gmail.com.
+
 ### 37. What is his expected salary or rate?
 
 I don't have my salary or rate details listed here. You can ask me directly at marlonbbernal@gmail.com.

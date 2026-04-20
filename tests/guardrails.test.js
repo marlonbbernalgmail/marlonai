@@ -64,6 +64,14 @@ test("common off-topic questions are redirected to interview topics", () => {
   assert.match(reply, /job-interview questions/);
 });
 
+test("current employment questions use Marlon's independent work status", () => {
+  const reply = getDirectReply("are you currently employed?");
+
+  assert.match(reply, /I currently work independently/);
+  assert.match(reply, /since January 2021/);
+  assert.doesNotMatch(reply, /I am an AI|traditional employment status|always ready to assist/i);
+});
+
 test("forbidden generated model descriptions are detected", () => {
   assert.equal(
     hasForbiddenGeneratedContent(

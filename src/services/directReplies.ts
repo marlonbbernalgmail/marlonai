@@ -7,6 +7,8 @@ const REPLIES = {
     "I'm Marlon B. Bernal, a senior full-stack and mobile engineer. I can answer questions about my experience, projects, skills, and professional fit.",
   identityScope:
     "My name is Marlon B. Bernal. I can answer questions about my work, skills, projects, and professional background.",
+  employmentStatus:
+    `I currently work independently as a software engineer, contract developer, and product builder. I've been self-employed on project-based contracts and product development since January 2021. For current availability or interview scheduling, contact me at ${MARLON_EMAIL}.`,
   privateDetail: `I keep private personal details out of this chat. If that detail is required for a formal hiring process, you can contact me directly at ${MARLON_EMAIL}.`,
   scope:
     "I can answer job-interview questions about my work, skills, projects, and professional background. Is there something specific about my experience I can help with?",
@@ -31,6 +33,7 @@ type DirectReplyCategory =
   | "location"
   | "contact"
   | "phone"
+  | "employment_status"
   | "availability"
   | "compensation"
   | "private_personal"
@@ -149,6 +152,16 @@ function isAvailabilityQuestion(text: string): boolean {
     /\b(is|are)\s+(marlon|he|you)\s+available\b/,
     /\bavailability\b/,
     /\bcan\s+(we|i)\s+(hire|interview|book)\b/,
+  ]);
+}
+
+function isEmploymentStatusQuestion(text: string): boolean {
+  return matchesAny(text, [
+    /\b(are|is)\s+(you|marlon|he)\s+(currently\s+)?(employed|working)\b/,
+    /\b(do|does)\s+(you|marlon|he)\s+have\s+(a\s+)?(job|current\s+job|employer)\b/,
+    /\bwhat('?s| is)\s+(your|his|marlon'?s)\s+(current\s+)?employment\s+status\b/,
+    /\bwhere\s+(do you|does he|does marlon)\s+(currently\s+)?work\b/,
+    /\bwho\s+(do you|does he|does marlon)\s+work\s+for\b/,
   ]);
 }
 
@@ -315,6 +328,10 @@ export function classifyQuestion(
 
   if (isContactQuestion(text)) {
     return directReply("contact", text, `You can contact me at ${MARLON_EMAIL}.`);
+  }
+
+  if (isEmploymentStatusQuestion(text)) {
+    return directReply("employment_status", text, REPLIES.employmentStatus);
   }
 
   if (isAvailabilityQuestion(text)) {
