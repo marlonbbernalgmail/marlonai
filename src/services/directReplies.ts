@@ -1,8 +1,15 @@
 const MARLON_EMAIL = "marlonbbernal@gmail.com";
 const MARLON_LOCATION = "Morong, Rizal, Philippines";
 const IDENTITY_REPLY = "My name is Marlon B. Bernal.";
+const PRIVATE_DETAIL_REPLY = `I keep private personal details like age out of this chat. If that detail is required for a formal hiring process, you can contact me directly at ${MARLON_EMAIL}.`;
 const SCOPE_REPLY =
   "I can answer job-interview questions about my work, skills, projects, and professional background. Is there something specific about my experience I can help with?";
+
+interface ReplyHistoryItem {
+  role?: string;
+  content?: string;
+  text?: string;
+}
 
 function normalize(message: string): string {
   return message
@@ -92,6 +99,23 @@ function isPrivatePersonalQuestion(text: string): boolean {
   ]);
 }
 
+function isPrivatePersonalFollowUp(text: string): boolean {
+  return matchesAny(text, [
+    /\bwhy\s+not\b/,
+    /\bwhy\b.*\b(can't|cannot|can not|don't|do not|won't|will not|not)\b/,
+    /\bpart\s+of\s+(the\s+)?(job\s+)?hiring\s+process\b/,
+    /\bformal\s+(job\s+)?(hiring|application|screening|process)\b/,
+    /\b(required|needed|necessary)\s+for\s+(the\s+)?(job|hiring|application|screening)\b/,
+  ]);
+}
+
+function hasRecentPrivatePersonalContext(history: ReplyHistoryItem[]): boolean {
+  return history.slice(-4).some((item) => {
+    const text = normalize(item.content ?? item.text ?? "");
+    return isPrivatePersonalQuestion(text) || text.includes("personal detail");
+  });
+}
+
 function isPromptInjection(text: string): boolean {
   return matchesAny(text, [
     /\bignore\s+(previous|above|all|the)\s+(instructions|rules|prompt)\b/,
@@ -136,8 +160,15 @@ function hasForbiddenModelSelfDescription(reply: string): boolean {
 
   return matchesAny(text, [
     /\bi\s+(am|'m)\s+(an?\s+)?(ai assistant|chatbot|bot|large language model|language model)\b/,
+    /\bi\s+(am|'m)\s+(an?\s+)?ai\s+language\s+model\b/,
     /\bi'?m\s+(an?\s+)?(ai assistant|chatbot|bot|large language model|language model)\b/,
+    /\bi'?m\s+(an?\s+)?ai\s+language\s+model\b/,
     /\bas\s+(an?\s+)?(ai assistant|ai model|large language model|language model)\b/,
+    /\binformational\s+assistant\b/,
+    /\bhr\s+representative\b/,
+    /\bactual\s+job\s+candidate\b/,
+    /\bdon't\s+participate\s+in\s+job\s+hiring\s+processes\b/,
+    /\bdo\s+not\s+participate\s+in\s+job\s+hiring\s+processes\b/,
     /\btrained by\s+(google|openai|anthropic)\b/,
     /\bbuilt by\s+(google|openai|anthropic)\b/,
     /\bmade by\s+(google|openai|anthropic)\b/,
@@ -162,7 +193,10 @@ function hasForbiddenModelSelfDescription(reply: string): boolean {
   ]);
 }
 
-export function getDirectReply(message: string): string | undefined {
+export function getDirectReply(
+  message: string,
+  history: ReplyHistoryItem[] = []
+): string | undefined {
   const text = normalize(message);
   if (!text) return undefined;
 
@@ -203,7 +237,14 @@ export function getDirectReply(message: string): string | undefined {
   }
 
   if (isPrivatePersonalQuestion(text)) {
-    return `I don't share that personal detail here. For professional questions, you can contact me at ${MARLON_EMAIL}.`;
+    return PRIVATE_DETAIL_REPLY;
+  }
+
+  if (
+    isPrivatePersonalFollowUp(text) &&
+    (hasRecentPrivatePersonalContext(history) || text.includes("hiring process"))
+  ) {
+    return PRIVATE_DETAIL_REPLY;
   }
 
   if (isGeneralCodingRequest(text)) {
@@ -217,7 +258,11 @@ export function getDirectReply(message: string): string | undefined {
   return undefined;
 }
 
-export function sanitizeReply(message: string, reply: string): string {
+export function sanitizeReply(
+  message: string,
+  reply: string,
+  history: ReplyHistoryItem[] = []
+): string {
   const normalizedMessage = normalize(message);
   const normalizedReply = normalize(reply);
   const isIdentityQuestion =
@@ -234,7 +279,7 @@ export function sanitizeReply(message: string, reply: string): string {
   }
 
   return (
-    getDirectReply(message) ??
+    getDirectReply(message, history) ??
     IDENTITY_REPLY
   );
 }

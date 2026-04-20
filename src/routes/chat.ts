@@ -41,9 +41,11 @@ router.post("/ask-me", ipBlockMiddleware, authMiddleware, async (req: Request, r
 
   try {
     const trimmedMessage = message.trim();
-    const directReply = getDirectReply(trimmedMessage);
+    const requestHistory = history ?? [];
+    const directReply = getDirectReply(trimmedMessage, requestHistory);
     const reply =
-      directReply ?? sanitizeReply(trimmedMessage, await askOllama(trimmedMessage, history ?? []));
+      directReply ??
+      sanitizeReply(trimmedMessage, await askOllama(trimmedMessage, requestHistory), requestHistory);
     const response_ms = Date.now() - startTime;
 
     logInteraction({
