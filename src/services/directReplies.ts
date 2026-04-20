@@ -146,8 +146,14 @@ function hasForbiddenModelSelfDescription(reply: string): boolean {
     /\b(capabilities\s+and\s+knowledge\s+base|provided\s+information\s+about\s+marlon)\b/,
     /\bknowledge\s+base\b/,
     /\bmy\s+name\s+is\s+a\s+persona\b/,
+    /\bmy\s+name\s+is\s+based\s+on\b/,
+    /\bmy\s+name\s+is\s+(the\s+)?profile'?s\s+persona\b/,
+    /\bprofile'?s\s+persona\b/,
+    /\bprofile\s+persona\b/,
     /\bpersona\s+based\s+on\s+(the\s+)?professional\s+experience\b/,
     /\bprofessional\s+experience\s+and\s+capabilities\s+described\b/,
+    /\bprofessional\s+experience\s+and\s+capabilities\b/,
+    /\banswer\s+(your\s+)?questions\s+about\s+my\s+professional\s+experience\s+and\s+capabilities\b/,
     /\btechnical\s+skills\s+and\s+work\s+history\b/,
     /\bfocus\s+on\s+answering\s+questions\s+about\s+my\s+technical\s+skills\b/,
   ]);
@@ -209,6 +215,17 @@ export function getDirectReply(message: string): string | undefined {
 }
 
 export function sanitizeReply(message: string, reply: string): string {
+  const normalizedMessage = normalize(message);
+  const normalizedReply = normalize(reply);
+  const isIdentityQuestion =
+    isAssistantIdentityQuestion(normalizedMessage) ||
+    isModelIdentityQuestion(normalizedMessage) ||
+    isMarlonNameQuestion(normalizedMessage);
+
+  if (isIdentityQuestion && !normalizedReply.includes("marlon b bernal")) {
+    return IDENTITY_REPLY;
+  }
+
   if (!hasForbiddenModelSelfDescription(reply)) {
     return reply;
   }
