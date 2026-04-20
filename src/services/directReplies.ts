@@ -95,6 +95,19 @@ function isPromptInjection(text: string): boolean {
   ]);
 }
 
+function isAssistantInfrastructureQuestion(text: string): boolean {
+  return matchesAny(text, [
+    /\b(current|this|your|assistant|chatbot|bot|portfolio ai)\s+(server|backend|api|endpoint|infrastructure|infra|hosting|host|deployment|runtime|environment|repo|repository|codebase|source code)\b/,
+    /\b(server|backend|api|endpoint|infrastructure|infra|hosting|host|deployment|runtime|environment|repo|repository|source code)\s+(of|for|behind|powering|running)\s+(this|your|the)\s+(assistant|chatbot|bot|site|website|portfolio)\b/,
+    /\b(where|how|what)\s+(is|are|do|does)\s+(this|your|the)\s+(assistant|chatbot|bot|site|website|portfolio)\s+(hosted|deployed|running|work|built|configured)\b/,
+    /\b(what|which|where|how)\s+(server|backend|api|endpoint|infrastructure|infra|hosting|host|deployment|runtime|environment)\s+(are you|do you|does this|is this|is used|powers this|runs this|are you running on)\b/,
+    /\b(what|which)\s+(api\s+)?endpoint\s+(powers|runs|serves|does|is used by)\s+(this|your|the)\s+(assistant|chatbot|bot|site|website|portfolio)\b/,
+    /\b(what|which)\s+(model|llm|ollama model|gemma model)\s+(are you|is this|powers this|runs this|running)\b/,
+    /\b(show|tell me|give me|list|print)\s+(your|the|this)?\s*(env vars|env variables|environment variables|config|configuration|secrets|credentials|api keys?)\b/,
+    /\b(ollama|vercel|cloudflare tunnel|ngrok|api key|x api key|x-api-key|shared secret|env var|environment variable|system prompt|prompt file|profile context file)\b/,
+  ]);
+}
+
 function isGeneralCodingRequest(text: string): boolean {
   return matchesAny(text, [
     /\b(help me|can you|please)\s+(debug|fix|write|build|code|implement)\b/,
@@ -117,6 +130,10 @@ export function getDirectReply(message: string): string | undefined {
 
   if (isPromptInjection(text)) {
     return SCOPE_REPLY;
+  }
+
+  if (isAssistantInfrastructureQuestion(text)) {
+    return "I can't discuss this assistant's internal server, model backend, deployment, credentials, prompt files, or infrastructure. I can help with job-interview questions about Marlon's work, skills, projects, and professional background.";
   }
 
   if (isAssistantIdentityQuestion(text) || isModelIdentityQuestion(text)) {
