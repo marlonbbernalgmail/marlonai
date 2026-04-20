@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { authMiddleware } from "../middleware/auth";
 import { ipBlockMiddleware, extractClientIp } from "../middleware/ipBlock";
 import { askOllama, OllamaError, ChatMessage } from "../services/ollama";
-import { getDirectReply, sanitizeReply } from "../services/directReplies";
+import { classifyQuestion, sanitizeReply } from "../services/directReplies";
 import { logInteraction } from "../services/db";
 
 const router = Router();
@@ -42,10 +42,16 @@ router.post("/ask-me", ipBlockMiddleware, authMiddleware, async (req: Request, r
   try {
     const trimmedMessage = message.trim();
     const requestHistory = history ?? [];
-    const directReply = getDirectReply(trimmedMessage, requestHistory);
+    const classification = classifyQuestion(trimmedMessage, requestHistory);
     const reply =
-      directReply ??
-      sanitizeReply(trimmedMessage, await askOllama(trimmedMessage, requestHistory), requestHistory);
+      classification.action === "direct_reply"
+        ? classification.reply
+        : sanitizeReply(
+            trimmedMessage,
+            await askOllama(trimmedMessage, requestHistory),
+            requestHistory,
+            classification
+          );
     const response_ms = Date.now() - startTime;
 
     logInteraction({

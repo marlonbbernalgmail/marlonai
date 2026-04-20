@@ -1,15 +1,60 @@
 const MARLON_EMAIL = "marlonbbernal@gmail.com";
 const MARLON_LOCATION = "Morong, Rizal, Philippines";
-const IDENTITY_REPLY = "My name is Marlon B. Bernal.";
-const PRIVATE_DETAIL_REPLY = `I keep private personal details like age out of this chat. If that detail is required for a formal hiring process, you can contact me directly at ${MARLON_EMAIL}.`;
-const SCOPE_REPLY =
-  "I can answer job-interview questions about my work, skills, projects, and professional background. Is there something specific about my experience I can help with?";
 
-interface ReplyHistoryItem {
+const REPLIES = {
+  identity: "My name is Marlon B. Bernal.",
+  whoAreYou:
+    "I'm Marlon B. Bernal, a senior full-stack and mobile engineer. I can answer questions about my experience, projects, skills, and professional fit.",
+  identityScope:
+    "My name is Marlon B. Bernal. I can answer questions about my work, skills, projects, and professional background.",
+  privateDetail: `I keep private personal details out of this chat. If that detail is required for a formal hiring process, you can contact me directly at ${MARLON_EMAIL}.`,
+  scope:
+    "I can answer job-interview questions about my work, skills, projects, and professional background. Is there something specific about my experience I can help with?",
+  internalImplementation:
+    "I can't discuss the internal setup of this portfolio feature, including its server, model backend, deployment, credentials, prompt files, or infrastructure. I can answer questions about my work, skills, projects, and professional background.",
+  codingFit:
+    "I can answer job-interview questions about my technical background. If you're evaluating my debugging or coding experience, I have experience with Laravel/PHP, React, React Native, Vue.js, Node.js, MySQL, Firebase, debugging, performance tuning, and production support.",
+} as const;
+
+export interface ReplyHistoryItem {
   role?: string;
   content?: string;
   text?: string;
 }
+
+type DirectReplyCategory =
+  | "prompt_injection"
+  | "internal_implementation"
+  | "name"
+  | "who_are_you"
+  | "model_identity"
+  | "location"
+  | "contact"
+  | "phone"
+  | "availability"
+  | "compensation"
+  | "private_personal"
+  | "private_personal_follow_up"
+  | "general_coding"
+  | "off_topic";
+
+type ModelCategory = "professional_or_unknown";
+
+export type QuestionCategory = DirectReplyCategory | ModelCategory;
+
+export type QuestionClassification =
+  | {
+      action: "direct_reply";
+      category: DirectReplyCategory;
+      normalizedMessage: string;
+      reply: string;
+    }
+  | {
+      action: "model";
+      category: ModelCategory;
+      normalizedMessage: string;
+      reply?: undefined;
+    };
 
 function normalize(message: string): string {
   return message
@@ -24,37 +69,63 @@ function matchesAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text));
 }
 
-function isAssistantIdentityQuestion(text: string): boolean {
+function directReply(
+  category: DirectReplyCategory,
+  normalizedMessage: string,
+  reply: string
+): QuestionClassification {
+  return {
+    action: "direct_reply",
+    category,
+    normalizedMessage,
+    reply,
+  };
+}
+
+function modelReply(normalizedMessage: string): QuestionClassification {
+  return {
+    action: "model",
+    category: "professional_or_unknown",
+    normalizedMessage,
+  };
+}
+
+function historyText(item: ReplyHistoryItem): string {
+  return normalize(item.content ?? item.text ?? "");
+}
+
+function isNameQuestion(text: string): boolean {
   return matchesAny(text, [
-    /^(hi|hello|hey)?\s*(what('?s| is) your name|who are you|what are you|introduce yourself|what should i call you)\??$/,
+    /^(hi|hello|hey)?\s*(what('?s| is) your name|what should i call you)\??$/,
     /\b(what('?s| is)|tell me|may i know|can i know|could i know)\s+(your\s+)?name\b/,
-    /\bwho\s+(am i|are we)\s+(talking|speaking|chatting)\s+to\b/,
     /\byour\s+name\b/,
-    /\b(are you|r u)\s+(an?\s+)?(ai|assistant|chatbot|bot)\b/,
+    /\bwhat('?s| is)\s+marlon('?s)?\s+(full\s+)?name\b/,
+  ]);
+}
+
+function isWhoAreYouQuestion(text: string): boolean {
+  return matchesAny(text, [
+    /^(hi|hello|hey)?\s*(who are you|introduce yourself|tell me about yourself)\??$/,
+    /\bwho\s+(am i|are we)\s+(talking|speaking|chatting)\s+to\b/,
+    /\bwho\s+is\s+marlon\b/,
   ]);
 }
 
 function isModelIdentityQuestion(text: string): boolean {
   return matchesAny(text, [
     /\b(what|which)\s+(ai\s+)?model\b/,
-    /\b(are you|r u)\s+(chatgpt|gemini|gemma|google|openai|claude)\b/,
+    /\b(are you|r u|is this)\s+(an?\s+)?(ai|assistant|chatbot|bot|chatgpt|gemini|gemma|google|openai|claude)\b/,
     /\b(trained by|made by|created by|built by)\s+(google|openai|anthropic)\b/,
     /\blarge language model\b/,
   ]);
 }
 
-function isMarlonNameQuestion(text: string): boolean {
-  return matchesAny(text, [
-    /\bwhat('?s| is)\s+marlon('?s)?\s+(full\s+)?name\b/,
-    /\bwho\s+is\s+marlon\b/,
-  ]);
-}
-
 function isLocationQuestion(text: string): boolean {
   return matchesAny(text, [
-    /\bwhat('?s| is)\s+(your|his|marlon'?s)\s+(address|location)\b/,
+    /\bwhat('?s| is)\s+(your|his|marlon'?s)\s+(exact\s+)?(home\s+|street\s+|house\s+)?(address|location)\b/,
     /\bwhere\s+(are you|is he|is marlon)\s+(located|based|from|living|live)\b/,
     /\bwhere\s+does\s+(marlon|he)\s+(live|work from)\b/,
+    /\bmap\s+location\b/,
   ]);
 }
 
@@ -95,7 +166,6 @@ function isPrivatePersonalQuestion(text: string): boolean {
     /\bwhen\s+(were you|was he|was marlon)\s+born\b/,
     /\b(age|birthday|birth date|date of birth|married|single|wife|girlfriend|family|children|religion|politics)\b/,
     /\b(citizenship|work authorization|visa|relocation)\b/,
-    /\b(home address|exact address|street address|house address)\b/,
   ]);
 }
 
@@ -111,8 +181,8 @@ function isPrivatePersonalFollowUp(text: string): boolean {
 
 function hasRecentPrivatePersonalContext(history: ReplyHistoryItem[]): boolean {
   return history.slice(-4).some((item) => {
-    const text = normalize(item.content ?? item.text ?? "");
-    return isPrivatePersonalQuestion(text) || text.includes("personal detail");
+    const text = historyText(item);
+    return isPrivatePersonalQuestion(text) || text.includes("private personal details");
   });
 }
 
@@ -123,11 +193,13 @@ function isPromptInjection(text: string): boolean {
     /\bshow\s+(your\s+)?(system\s+)?prompt\b/,
     /\bdeveloper\s+message\b/,
     /\bhidden\s+(instructions|rules|prompt)\b/,
+    /\bact\s+as\s+(someone|something|another|a\s+different)\b/,
   ]);
 }
 
 function isAssistantInfrastructureQuestion(text: string): boolean {
   return matchesAny(text, [
+    /\b(what|which)\s+(model|llm)\s+and\s+(server|backend|infrastructure|hosting)\s+(are you|is this|powers this|runs this|running)\b/,
     /\b(current|this|your|assistant|chatbot|bot|portfolio ai)\s+(server|backend|api|endpoint|infrastructure|infra|hosting|host|deployment|runtime|environment|repo|repository|codebase|source code)\b/,
     /\b(server|backend|api|endpoint|infrastructure|infra|hosting|host|deployment|runtime|environment|repo|repository|source code)\s+(of|for|behind|powering|running)\s+(this|your|the)\s+(assistant|chatbot|bot|site|website|portfolio)\b/,
     /\b(where|how|what)\s+(is|are|do|does)\s+(this|your|the)\s+(assistant|chatbot|bot|site|website|portfolio)\s+(hosted|deployed|running|work|built|configured)\b/,
@@ -175,10 +247,9 @@ function hasForbiddenModelSelfDescription(reply: string): boolean {
     /\bcreated by\s+(google|openai|anthropic)\b/,
     /\bi\s+(do not|don't)\s+have\s+a\s+personal\s+name\b/,
     /\bi\s+(do not|don't)\s+have\s+personal\s+(experiences|opinions|feelings)\b/,
-    /\b(my\s+)?name\s+is\s+not\s+(specified|provided|listed|available)\b/,
+    /\b(my\s+)?name\s+is\s+not\s+(specified|provided|listed|available|mentioned)\b/,
     /\bi\s+(can|could)\s+answer\s+questions\s+about\s+my\s+(capabilities|knowledge\s+base)\b/,
     /\b(capabilities\s+and\s+knowledge\s+base|provided\s+information\s+about\s+marlon)\b/,
-    /\bknowledge\s+base\b/,
     /\bmy\s+name\s+is\s+a\s+persona\b/,
     /\bmy\s+name\s+is\s+based\s+on\b/,
     /\bmy\s+name\s+is\s+(the\s+)?profile'?s\s+persona\b/,
@@ -193,93 +264,133 @@ function hasForbiddenModelSelfDescription(reply: string): boolean {
   ]);
 }
 
-export function getDirectReply(
+function hasHiddenSourceMention(reply: string): boolean {
+  const text = normalize(reply);
+
+  return matchesAny(text, [
+    /\b(system|developer|hidden)\s+(prompt|message|instruction|rule)s?\b/,
+    /\b(profile\s+context|knowledge\s+base|provided\s+context|provided\s+information|text\s+you\s+provide)\b/,
+    /\bbased\s+on\s+(the\s+)?(provided\s+)?(context|information|profile|persona)\b/,
+  ]);
+}
+
+export function hasForbiddenGeneratedContent(reply: string): boolean {
+  return hasForbiddenModelSelfDescription(reply) || hasHiddenSourceMention(reply);
+}
+
+export function classifyQuestion(
   message: string,
   history: ReplyHistoryItem[] = []
-): string | undefined {
+): QuestionClassification {
   const text = normalize(message);
-  if (!text) return undefined;
+  if (!text) return modelReply(text);
 
   if (isPromptInjection(text)) {
-    return SCOPE_REPLY;
+    return directReply("prompt_injection", text, REPLIES.scope);
   }
 
   if (isAssistantInfrastructureQuestion(text)) {
-    return "I can't discuss the internal setup of this portfolio feature, including its server, model backend, deployment, credentials, prompt files, or infrastructure. I can answer questions about my work, skills, projects, and professional background.";
+    return directReply("internal_implementation", text, REPLIES.internalImplementation);
   }
 
-  if (isAssistantIdentityQuestion(text) || isModelIdentityQuestion(text)) {
-    return IDENTITY_REPLY;
+  if (isNameQuestion(text)) {
+    return directReply("name", text, REPLIES.identity);
   }
 
-  if (isMarlonNameQuestion(text)) {
-    return IDENTITY_REPLY;
+  if (isWhoAreYouQuestion(text)) {
+    return directReply("who_are_you", text, REPLIES.whoAreYou);
+  }
+
+  if (isModelIdentityQuestion(text)) {
+    return directReply("model_identity", text, REPLIES.identityScope);
   }
 
   if (isLocationQuestion(text)) {
-    return `I'm based in ${MARLON_LOCATION}.`;
+    return directReply("location", text, `I'm based in ${MARLON_LOCATION}.`);
   }
 
   if (isPhoneQuestion(text)) {
-    return `The best way to contact me is by email at ${MARLON_EMAIL}.`;
+    return directReply("phone", text, `The best way to contact me is by email at ${MARLON_EMAIL}.`);
   }
 
   if (isContactQuestion(text)) {
-    return `You can contact me at ${MARLON_EMAIL}.`;
+    return directReply("contact", text, `You can contact me at ${MARLON_EMAIL}.`);
   }
 
   if (isAvailabilityQuestion(text)) {
-    return `I've worked as an independent software engineer and contract developer since January 2021. For current availability or interview scheduling, contact me at ${MARLON_EMAIL}.`;
+    return directReply(
+      "availability",
+      text,
+      `I've worked as an independent software engineer and contract developer since January 2021. For current availability or interview scheduling, contact me at ${MARLON_EMAIL}.`
+    );
   }
 
   if (isSalaryOrRateQuestion(text)) {
-    return `I don't have my salary or rate details listed here. You can ask me directly at ${MARLON_EMAIL}.`;
+    return directReply(
+      "compensation",
+      text,
+      `I don't have my salary or rate details listed here. You can ask me directly at ${MARLON_EMAIL}.`
+    );
   }
 
   if (isPrivatePersonalQuestion(text)) {
-    return PRIVATE_DETAIL_REPLY;
+    return directReply("private_personal", text, REPLIES.privateDetail);
   }
 
   if (
     isPrivatePersonalFollowUp(text) &&
     (hasRecentPrivatePersonalContext(history) || text.includes("hiring process"))
   ) {
-    return PRIVATE_DETAIL_REPLY;
+    return directReply("private_personal_follow_up", text, REPLIES.privateDetail);
   }
 
   if (isGeneralCodingRequest(text)) {
-    return "I can answer job-interview questions about my technical background. If you're evaluating my debugging or coding experience, I have experience with Laravel/PHP, React, React Native, Vue.js, Node.js, MySQL, Firebase, debugging, performance tuning, and production support.";
+    return directReply("general_coding", text, REPLIES.codingFit);
   }
 
   if (isCommonOffTopicQuestion(text)) {
-    return SCOPE_REPLY;
+    return directReply("off_topic", text, REPLIES.scope);
   }
 
-  return undefined;
+  return modelReply(text);
+}
+
+export function getDirectReply(
+  message: string,
+  history: ReplyHistoryItem[] = []
+): string | undefined {
+  const classification = classifyQuestion(message, history);
+  return classification.action === "direct_reply" ? classification.reply : undefined;
+}
+
+function fallbackForClassification(classification: QuestionClassification): string {
+  if (classification.action === "direct_reply") {
+    return classification.reply;
+  }
+
+  return REPLIES.scope;
 }
 
 export function sanitizeReply(
   message: string,
   reply: string,
-  history: ReplyHistoryItem[] = []
+  history: ReplyHistoryItem[] = [],
+  classification = classifyQuestion(message, history)
 ): string {
-  const normalizedMessage = normalize(message);
-  const normalizedReply = normalize(reply);
-  const isIdentityQuestion =
-    isAssistantIdentityQuestion(normalizedMessage) ||
-    isModelIdentityQuestion(normalizedMessage) ||
-    isMarlonNameQuestion(normalizedMessage);
+  const trimmedReply = reply.trim();
+  const normalizedReply = normalize(trimmedReply);
 
-  if (isIdentityQuestion && !normalizedReply.includes("marlon b bernal")) {
-    return IDENTITY_REPLY;
+  if (!trimmedReply) {
+    return fallbackForClassification(classification);
   }
 
-  if (!hasForbiddenModelSelfDescription(reply)) {
-    return reply;
+  if (classification.category === "name" && !normalizedReply.includes("marlon b bernal")) {
+    return REPLIES.identity;
   }
 
-  return (
-    getDirectReply(message, history) ??
-    IDENTITY_REPLY
-  );
+  if (hasForbiddenGeneratedContent(trimmedReply)) {
+    return fallbackForClassification(classification);
+  }
+
+  return trimmedReply;
 }

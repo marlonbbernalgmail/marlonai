@@ -63,7 +63,24 @@ npm run dev
 
 # Production
 npm run build && npm start
+
+# Guardrail regression tests
+npm test
 ```
+
+---
+
+## Response Guardrail Flow
+
+The `/ask-me` route uses a layered portfolio-interview flow:
+
+1. `data/profile-context.md` stores factual public professional information about Marlon.
+2. `prompts/system-prompt.md` defines the first-person interview behavior and scope rules.
+3. `src/services/directReplies.ts` classifies high-risk question categories before the model is called.
+4. Professional questions that are not directly handled are sent to Ollama.
+5. Generated answers pass through `sanitizeReply()` before they are returned, so model/provider wording, hidden prompt/context wording, and assistant-style answers are replaced with safe first-person responses.
+
+This keeps deterministic control over identity, private personal details, internal implementation questions, prompt injection, and off-topic requests while still letting Ollama answer richer job-interview questions from the profile.
 
 ---
 
