@@ -1,7 +1,7 @@
 const MARLON_EMAIL = "marlonbbernal@gmail.com";
 const MARLON_LOCATION = "Morong, Rizal, Philippines";
 const SCOPE_REPLY =
-  "I'm here to answer job-interview questions about Marlon's work, skills, projects, and professional background. Is there something specific about his experience I can help with?";
+  "I can answer job-interview questions about my work, skills, projects, and professional background. Is there something specific about my experience I can help with?";
 
 function normalize(message: string): string {
   return message
@@ -124,6 +124,22 @@ function isCommonOffTopicQuestion(text: string): boolean {
   ]);
 }
 
+function hasForbiddenModelSelfDescription(reply: string): boolean {
+  const text = normalize(reply);
+
+  return matchesAny(text, [
+    /\bi\s+(am|'m)\s+(an?\s+)?(ai assistant|chatbot|bot|large language model|language model)\b/,
+    /\bi'?m\s+(an?\s+)?(ai assistant|chatbot|bot|large language model|language model)\b/,
+    /\bas\s+(an?\s+)?(ai assistant|ai model|large language model|language model)\b/,
+    /\btrained by\s+(google|openai|anthropic)\b/,
+    /\bbuilt by\s+(google|openai|anthropic)\b/,
+    /\bmade by\s+(google|openai|anthropic)\b/,
+    /\bcreated by\s+(google|openai|anthropic)\b/,
+    /\bi\s+(do not|don't)\s+have\s+a\s+personal\s+name\b/,
+    /\bi\s+(do not|don't)\s+have\s+personal\s+(experiences|opinions|feelings)\b/,
+  ]);
+}
+
 export function getDirectReply(message: string): string | undefined {
   const text = normalize(message);
   if (!text) return undefined;
@@ -133,43 +149,43 @@ export function getDirectReply(message: string): string | undefined {
   }
 
   if (isAssistantInfrastructureQuestion(text)) {
-    return "I can't discuss this assistant's internal server, model backend, deployment, credentials, prompt files, or infrastructure. I can help with job-interview questions about Marlon's work, skills, projects, and professional background.";
+    return "I can't discuss the internal setup of this portfolio feature, including its server, model backend, deployment, credentials, prompt files, or infrastructure. I can answer questions about my work, skills, projects, and professional background.";
   }
 
   if (isAssistantIdentityQuestion(text) || isModelIdentityQuestion(text)) {
-    return "I'm Marlon Bernal's portfolio interview assistant. I help answer job-interview questions about Marlon's work, skills, projects, and professional background.";
+    return "My name is Marlon B. Bernal. I'm a senior full-stack and mobile engineer, and I can answer job-interview questions about my work, skills, projects, and professional background.";
   }
 
   if (isMarlonNameQuestion(text)) {
-    return "His full name is Marlon B. Bernal.";
+    return "My full name is Marlon B. Bernal.";
   }
 
   if (isLocationQuestion(text)) {
-    return `Marlon is based in ${MARLON_LOCATION}.`;
+    return `I'm based in ${MARLON_LOCATION}.`;
   }
 
   if (isPhoneQuestion(text)) {
-    return `For contact, the best option is Marlon's email: ${MARLON_EMAIL}.`;
+    return `The best way to contact me is by email at ${MARLON_EMAIL}.`;
   }
 
   if (isContactQuestion(text)) {
-    return `You can contact Marlon at ${MARLON_EMAIL}.`;
+    return `You can contact me at ${MARLON_EMAIL}.`;
   }
 
   if (isAvailabilityQuestion(text)) {
-    return `Marlon has worked as an independent software engineer and contract developer since January 2021. For current availability or interview scheduling, contact him at ${MARLON_EMAIL}.`;
+    return `I've worked as an independent software engineer and contract developer since January 2021. For current availability or interview scheduling, contact me at ${MARLON_EMAIL}.`;
   }
 
   if (isSalaryOrRateQuestion(text)) {
-    return `I don't have Marlon's salary or rate details here. You're welcome to ask him directly at ${MARLON_EMAIL}.`;
+    return `I don't have my salary or rate details listed here. You can ask me directly at ${MARLON_EMAIL}.`;
   }
 
   if (isPrivatePersonalQuestion(text)) {
-    return `I don't have that personal detail here. For professional questions, you're welcome to contact Marlon at ${MARLON_EMAIL}.`;
+    return `I don't share that personal detail here. For professional questions, you can contact me at ${MARLON_EMAIL}.`;
   }
 
   if (isGeneralCodingRequest(text)) {
-    return "I'm here to answer job-interview questions about Marlon's technical background. If you're evaluating his debugging or coding experience, he has experience with Laravel/PHP, React, React Native, Vue.js, Node.js, MySQL, Firebase, debugging, performance tuning, and production support.";
+    return "I can answer job-interview questions about my technical background. If you're evaluating my debugging or coding experience, I have experience with Laravel/PHP, React, React Native, Vue.js, Node.js, MySQL, Firebase, debugging, performance tuning, and production support.";
   }
 
   if (isCommonOffTopicQuestion(text)) {
@@ -177,4 +193,15 @@ export function getDirectReply(message: string): string | undefined {
   }
 
   return undefined;
+}
+
+export function sanitizeReply(message: string, reply: string): string {
+  if (!hasForbiddenModelSelfDescription(reply)) {
+    return reply;
+  }
+
+  return (
+    getDirectReply(message) ??
+    "My name is Marlon B. Bernal. I'm a senior full-stack and mobile engineer, and I can answer job-interview questions about my work, skills, projects, and professional background."
+  );
 }

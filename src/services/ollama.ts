@@ -86,7 +86,7 @@ function buildUserContent(message: string): string {
     "Visitor question:",
     message,
     "",
-    "Answer only if this is a job-interview or professional-evaluation question about Marlon. Follow the system rules and use only the provided professional profile.",
+    "Answer only if this is a job-interview or professional-evaluation question about Marlon. Use first person as Marlon's public professional profile. Follow the system rules and use only the provided professional profile.",
   ].join("\n");
 }
 
