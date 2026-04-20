@@ -1,6 +1,6 @@
 # marlonai-connector
 
-A secure local connector server that sits between your Vercel portfolio API and your local Ollama instance.
+A secure local connector server that sits between your Vercel portfolio API and your local Ollama instance. It is tuned for job-interview and professional-evaluation questions about Marlon's work, skills, projects, and career background.
 
 ```
 Public user
@@ -22,7 +22,11 @@ Copy `.env.example` to `.env` and fill in your values:
 |---|---|---|
 | `PORT` | yes | Port this server listens on (e.g. `3001`) |
 | `OLLAMA_BASE_URL` | yes | Ollama local URL (e.g. `http://localhost:11434`) |
-| `OLLAMA_MODEL` | yes | Model name in Ollama (e.g. `llama3.2`) |
+| `OLLAMA_MODEL` | yes | Model name in Ollama (e.g. `gemma4`, or the exact name shown by `ollama list`) |
+| `OLLAMA_TEMPERATURE` | no | Lower values make answers more consistent and grounded. Default: `0.2` |
+| `OLLAMA_TOP_P` | no | Sampling control for Ollama responses. Default: `0.9` |
+| `OLLAMA_REPEAT_PENALTY` | no | Helps reduce repetitive phrasing. Default: `1.08` |
+| `OLLAMA_NUM_CTX` | no | Optional Ollama context window override, useful for larger local models |
 | `VERCEL_SHARED_API_KEY` | yes | Secret shared with your Vercel API route |
 | `ALLOWED_ORIGIN` | no | If set, rejects requests with a different `Origin` header |
 | `SYSTEM_PROMPT_FILE` | no | Path to system prompt (default: `prompts/system-prompt.md`) |

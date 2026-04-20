@@ -1,10 +1,16 @@
 import { loadTextFile } from "../utils/loadTextFile";
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "llama3.2";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "gemma4";
 const SYSTEM_PROMPT_FILE = process.env.SYSTEM_PROMPT_FILE ?? "prompts/system-prompt.md";
 const PROFILE_CONTEXT_FILE = process.env.PROFILE_CONTEXT_FILE ?? "data/profile-context.md";
 const REQUEST_TIMEOUT_MS = 60_000;
+const MAX_HISTORY_MESSAGES = 8;
+const MAX_HISTORY_CONTENT_CHARS = 1_200;
+const OLLAMA_TEMPERATURE = readNumberEnv("OLLAMA_TEMPERATURE", 0.2);
+const OLLAMA_TOP_P = readNumberEnv("OLLAMA_TOP_P", 0.9);
+const OLLAMA_REPEAT_PENALTY = readNumberEnv("OLLAMA_REPEAT_PENALTY", 1.08);
+const OLLAMA_NUM_CTX = readOptionalNumberEnv("OLLAMA_NUM_CTX");
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -17,7 +23,7 @@ interface OllamaMessage {
 }
 
 interface OllamaChatResponse {
-  message: { role: string; content: string };
+  message?: { role?: string; content?: string };
 }
 
 export class OllamaError extends Error {
@@ -28,6 +34,22 @@ export class OllamaError extends Error {
     super(message);
     this.name = "OllamaError";
   }
+}
+
+function readNumberEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function readOptionalNumberEnv(name: string): number | undefined {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : undefined;
 }
 
 function buildSystemContent(): string {
@@ -42,6 +64,46 @@ function buildSystemContent(): string {
     : systemPrompt;
 }
 
+function truncateHistoryContent(content: string): string {
+  const trimmed = content.trim();
+  if (trimmed.length <= MAX_HISTORY_CONTENT_CHARS) return trimmed;
+  return `${trimmed.slice(0, MAX_HISTORY_CONTENT_CHARS)}...`;
+}
+
+function buildHistoryMessages(history: ChatMessage[]): OllamaMessage[] {
+  return history
+    .slice(-MAX_HISTORY_MESSAGES)
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      role: m.role,
+      content: truncateHistoryContent(m.content),
+    }))
+    .filter((m) => m.content.length > 0);
+}
+
+function buildUserContent(message: string): string {
+  return [
+    "Visitor question:",
+    message,
+    "",
+    "Answer only if this is a job-interview or professional-evaluation question about Marlon. Follow the system rules and use only the provided professional profile.",
+  ].join("\n");
+}
+
+function buildOllamaOptions(): Record<string, number> {
+  const options: Record<string, number> = {
+    temperature: OLLAMA_TEMPERATURE,
+    top_p: OLLAMA_TOP_P,
+    repeat_penalty: OLLAMA_REPEAT_PENALTY,
+  };
+
+  if (OLLAMA_NUM_CTX !== undefined) {
+    options.num_ctx = OLLAMA_NUM_CTX;
+  }
+
+  return options;
+}
+
 export async function askOllama(
   message: string,
   history: ChatMessage[] = []
@@ -50,10 +112,8 @@ export async function askOllama(
 
   const messages: OllamaMessage[] = [
     { role: "system", content: systemContent },
-    ...history
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({ role: m.role, content: m.content })),
-    { role: "user", content: message },
+    ...buildHistoryMessages(history),
+    { role: "user", content: buildUserContent(message) },
   ];
 
   const controller = new AbortController();
@@ -63,7 +123,12 @@ export async function askOllama(
     const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: OLLAMA_MODEL, messages, stream: false }),
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages,
+        stream: false,
+        options: buildOllamaOptions(),
+      }),
       signal: controller.signal,
     });
 
@@ -74,7 +139,13 @@ export async function askOllama(
     }
 
     const data = (await response.json()) as OllamaChatResponse;
-    return data.message.content;
+    const content = data.message?.content?.trim();
+    if (!content) {
+      console.error("[ollama] Empty response body:", data);
+      throw new OllamaError("Ollama returned an empty response", 502);
+    }
+
+    return content;
   } catch (err) {
     if (err instanceof OllamaError) throw err;
 
