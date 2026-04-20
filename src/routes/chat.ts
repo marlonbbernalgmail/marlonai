@@ -54,7 +54,7 @@ router.post("/ask-me", ipBlockMiddleware, authMiddleware, async (req: Request, r
           );
     const response_ms = Date.now() - startTime;
 
-    logInteraction({
+    await logInteraction({
       question: trimmedMessage,
       answer: reply,
       ip_address: clientIp,
@@ -79,7 +79,7 @@ router.post("/ask-me", ipBlockMiddleware, authMiddleware, async (req: Request, r
       console.error("[chat] Unexpected error:", err);
     }
 
-    logInteraction({
+    await logInteraction({
       question: message.trim(),
       answer: `ERROR: ${errorMsg}`,
       ip_address: clientIp,

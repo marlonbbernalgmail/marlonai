@@ -20,7 +20,7 @@ export interface DatabaseConfigStatus {
 }
 
 export function getDatabaseConfigStatus(): DatabaseConfigStatus {
-  const missing = REQUIRED_DB_ENV.filter((name) => process.env[name] === undefined);
+  const missing = REQUIRED_DB_ENV.filter((name) => !process.env[name]);
 
   return {
     configured: missing.length === 0,
@@ -119,6 +119,7 @@ export async function logInteraction(r: InteractionRecord): Promise<void> {
     return;
   }
   try {
+    console.log("[db] Executing INSERT for interaction...");
     await getPool().execute(
       `INSERT INTO interactions
          (question, answer, ip_address, forwarded_ips, user_agent, referer, response_ms, model, status)
@@ -135,6 +136,7 @@ export async function logInteraction(r: InteractionRecord): Promise<void> {
         r.status ?? "success",
       ]
     );
+    console.log("[db] INSERT successful");
   } catch (err) {
     console.error("[db] logInteraction failed:", err);
   }
@@ -279,8 +281,15 @@ export async function updateAccuracy(
   accuracy: "unreviewed" | "accurate" | "inaccurate",
   notes?: string
 ): Promise<void> {
-  await getPool().execute(
-    "UPDATE interactions SET accuracy = ?, notes = ? WHERE id = ?",
-    [accuracy, notes ?? null, id]
-  );
+  if (notes !== undefined) {
+    await getPool().execute(
+      "UPDATE interactions SET accuracy = ?, notes = ? WHERE id = ?",
+      [accuracy, notes, id]
+    );
+  } else {
+    await getPool().execute(
+      "UPDATE interactions SET accuracy = ? WHERE id = ?",
+      [accuracy, id]
+    );
+  }
 }

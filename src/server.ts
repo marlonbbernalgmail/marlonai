@@ -34,10 +34,18 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-initDb().catch((err) => {
-  console.error("[db] Failed to initialize — check MYSQL_* env vars:", (err as Error).message);
-});
-
-app.listen(PORT, () => {
-  console.log(`[server] Ollama connector listening on port ${PORT}`);
-});
+(async () => {
+  try {
+    await initDb();
+    app.listen(PORT, () => {
+      console.log(`[server] Ollama connector listening on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("[db] Failed to initialize — check MYSQL_* env vars:", (err as Error).message);
+    // Optionally: decide if we still start the server if DB fails.
+    // For now we'll start it anyway to avoid downtime.
+    app.listen(PORT, () => {
+      console.log(`[server] Ollama connector listening on port ${PORT} (warning: DB failed)`);
+    });
+  }
+})();
