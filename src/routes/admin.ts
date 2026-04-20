@@ -7,6 +7,7 @@ import {
   blockIp,
   unblockIp,
   updateAccuracy,
+  getDatabaseConfigStatus,
 } from "../services/db";
 
 const router = Router();
@@ -62,10 +63,54 @@ function accuracyBadge(v: string): string {
   return `<span class="badge bg-secondary">Unreviewed</span>`;
 }
 
+function renderAdminShell(body: string, title = "Marlon AI Admin"): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(title)}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-dark bg-dark mb-4 px-4">
+    <span class="navbar-brand">Marlon AI Admin</span>
+    <span class="navbar-text text-muted small">Portfolio Chatbot Monitor</span>
+  </nav>
+  <main class="container-fluid px-4">${body}</main>
+</body>
+</html>`;
+}
+
 // ── Dashboard ────────────────────────────────────────────────────────────────
 
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
+    const dbStatus = getDatabaseConfigStatus();
+    if (!dbStatus.configured) {
+      res.send(
+        renderAdminShell(`
+          <div class="alert alert-warning shadow-sm">
+            <h1 class="h4">Interaction Logging Is Disabled</h1>
+            <p class="mb-2">MySQL is not configured for this running server, so portfolio chat questions and answers are not being saved.</p>
+            <p class="mb-0"><strong>Missing environment variables:</strong> ${esc(dbStatus.missing.join(", "))}</p>
+          </div>
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h5">Required Variables</h2>
+              <p class="text-muted mb-2">Set these in the backend server environment, then restart the connector:</p>
+              <code>MYSQL_HOST</code>
+              <code>MYSQL_PORT</code>
+              <code>MYSQL_USER</code>
+              <code>MYSQL_PASSWORD</code>
+              <code>MYSQL_DATABASE</code>
+            </div>
+          </div>
+        `)
+      );
+      return;
+    }
+
     const page       = Math.max(1, parseInt((req.query.page as string) || "1", 10));
     const filterIp   = (req.query.ip   as string) || "";
     const filterFlag = (req.query.flag as string) || "";

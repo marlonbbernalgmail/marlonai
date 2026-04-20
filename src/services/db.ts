@@ -2,14 +2,37 @@ import mysql from "mysql2/promise";
 import type { Pool, RowDataPacket } from "mysql2/promise";
 
 let pool: Pool | null = null;
+let warnedLoggingDisabled = false;
+
+const REQUIRED_DB_ENV = [
+  "MYSQL_HOST",
+  "MYSQL_USER",
+  "MYSQL_PASSWORD",
+  "MYSQL_DATABASE",
+] as const;
+
+export interface DatabaseConfigStatus {
+  configured: boolean;
+  missing: string[];
+  host?: string;
+  port: string;
+  database?: string;
+}
+
+export function getDatabaseConfigStatus(): DatabaseConfigStatus {
+  const missing = REQUIRED_DB_ENV.filter((name) => process.env[name] === undefined);
+
+  return {
+    configured: missing.length === 0,
+    missing,
+    host: process.env.MYSQL_HOST,
+    port: process.env.MYSQL_PORT ?? "3306",
+    database: process.env.MYSQL_DATABASE,
+  };
+}
 
 export function isDatabaseConfigured(): boolean {
-  return !!(
-    process.env.MYSQL_HOST &&
-    process.env.MYSQL_USER &&
-    process.env.MYSQL_PASSWORD &&
-    process.env.MYSQL_DATABASE
-  );
+  return getDatabaseConfigStatus().configured;
 }
 
 export function getPool(): Pool {
@@ -29,8 +52,11 @@ export function getPool(): Pool {
 }
 
 export async function initDb(): Promise<void> {
-  if (!isDatabaseConfigured()) {
-    console.warn("[db] MySQL not configured — interaction logging disabled");
+  const status = getDatabaseConfigStatus();
+  if (!status.configured) {
+    console.warn(
+      `[db] MySQL not configured — interaction logging disabled. Missing: ${status.missing.join(", ")}`
+    );
     return;
   }
 
@@ -85,7 +111,13 @@ export interface InteractionRecord {
 }
 
 export async function logInteraction(r: InteractionRecord): Promise<void> {
-  if (!isDatabaseConfigured()) return;
+  if (!isDatabaseConfigured()) {
+    if (!warnedLoggingDisabled) {
+      warnedLoggingDisabled = true;
+      console.warn("[db] Interaction logging skipped because MySQL is not configured");
+    }
+    return;
+  }
   try {
     await getPool().execute(
       `INSERT INTO interactions
