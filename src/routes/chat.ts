@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { authMiddleware } from "../middleware/auth";
 import { askOllama, OllamaError, ChatMessage } from "../services/ollama";
+import { getDirectReply } from "../services/directReplies";
 
 const router = Router();
 
@@ -31,7 +32,10 @@ router.post("/ask-me", authMiddleware, async (req: Request, res: Response): Prom
   }
 
   try {
-    const reply = await askOllama(message.trim(), history ?? []);
+    const trimmedMessage = message.trim();
+    const directReply = getDirectReply(trimmedMessage);
+    const reply = directReply ?? (await askOllama(trimmedMessage, history ?? []));
+
     res.json({ reply });
   } catch (err) {
     if (err instanceof OllamaError) {
