@@ -1,7 +1,9 @@
 import { Router, Request, Response } from "express";
 import { authMiddleware } from "../middleware/auth";
+import { ipBlockMiddleware, extractClientIp } from "../middleware/ipBlock";
 import { askOllama, OllamaError, ChatMessage } from "../services/ollama";
 import { getDirectReply, sanitizeReply } from "../services/directReplies";
+import { logInteraction } from "../services/db";
 
 const router = Router();
 
@@ -16,7 +18,7 @@ function isValidHistory(history: unknown): history is ChatMessage[] {
   );
 }
 
-router.post("/ask-me", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.post("/ask-me", ipBlockMiddleware, authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { message, history } = req.body as { message: unknown; history: unknown };
 
   if (!message || typeof message !== "string" || message.trim() === "") {
@@ -31,21 +33,56 @@ router.post("/ask-me", authMiddleware, async (req: Request, res: Response): Prom
     return;
   }
 
+  const clientIp    = extractClientIp(req);
+  const userAgent   = req.headers["user-agent"] ?? undefined;
+  const referer     = (req.headers["referer"] ?? req.headers["referrer"] ?? undefined) as string | undefined;
+  const fwdIps      = req.headers["x-forwarded-for"] ? String(req.headers["x-forwarded-for"]) : undefined;
+  const startTime   = Date.now();
+
   try {
     const trimmedMessage = message.trim();
     const directReply = getDirectReply(trimmedMessage);
     const reply =
       directReply ?? sanitizeReply(trimmedMessage, await askOllama(trimmedMessage, history ?? []));
+    const response_ms = Date.now() - startTime;
+
+    logInteraction({
+      question: trimmedMessage,
+      answer: reply,
+      ip_address: clientIp,
+      forwarded_ips: fwdIps,
+      user_agent: userAgent,
+      referer,
+      response_ms,
+      status: "success",
+    });
 
     res.json({ reply });
   } catch (err) {
+    const response_ms = Date.now() - startTime;
+    let errorMsg = "Internal server error";
+    let statusCode = 500;
+
     if (err instanceof OllamaError) {
       console.error(`[chat] OllamaError (${err.status}): ${err.message}`);
-      res.status(err.status).json({ error: err.message });
-      return;
+      errorMsg = err.message;
+      statusCode = err.status;
+    } else {
+      console.error("[chat] Unexpected error:", err);
     }
-    console.error("[chat] Unexpected error:", err);
-    res.status(500).json({ error: "Internal server error" });
+
+    logInteraction({
+      question: message.trim(),
+      answer: `ERROR: ${errorMsg}`,
+      ip_address: clientIp,
+      forwarded_ips: fwdIps,
+      user_agent: userAgent,
+      referer,
+      response_ms,
+      status: "error",
+    });
+
+    res.status(statusCode).json({ error: errorMsg });
   }
 });
 
