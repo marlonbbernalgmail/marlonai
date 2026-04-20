@@ -83,6 +83,9 @@ function isSalaryOrRateQuestion(text: string): boolean {
 
 function isPrivatePersonalQuestion(text: string): boolean {
   return matchesAny(text, [
+    /\bhow\s+old\s+(are you|is he|is marlon)\b/,
+    /\bwhat('?s| is)\s+(your|his|marlon'?s)\s+age\b/,
+    /\bwhen\s+(were you|was he|was marlon)\s+born\b/,
     /\b(age|birthday|birth date|date of birth|married|single|wife|girlfriend|family|children|religion|politics)\b/,
     /\b(citizenship|work authorization|visa|relocation)\b/,
     /\b(home address|exact address|street address|house address)\b/,
