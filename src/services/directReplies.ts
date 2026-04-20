@@ -19,6 +19,9 @@ function matchesAny(text: string, patterns: RegExp[]): boolean {
 function isAssistantIdentityQuestion(text: string): boolean {
   return matchesAny(text, [
     /^(hi|hello|hey)?\s*(what('?s| is) your name|who are you|what are you|introduce yourself|what should i call you)\??$/,
+    /\b(what('?s| is)|tell me|may i know|can i know|could i know)\s+(your\s+)?name\b/,
+    /\bwho\s+(am i|are we)\s+(talking|speaking|chatting)\s+to\b/,
+    /\byour\s+name\b/,
     /\b(are you|r u)\s+(an?\s+)?(ai|assistant|chatbot|bot)\b/,
   ]);
 }
@@ -137,6 +140,10 @@ function hasForbiddenModelSelfDescription(reply: string): boolean {
     /\bcreated by\s+(google|openai|anthropic)\b/,
     /\bi\s+(do not|don't)\s+have\s+a\s+personal\s+name\b/,
     /\bi\s+(do not|don't)\s+have\s+personal\s+(experiences|opinions|feelings)\b/,
+    /\b(my\s+)?name\s+is\s+not\s+(specified|provided|listed|available)\b/,
+    /\bi\s+(can|could)\s+answer\s+questions\s+about\s+my\s+(capabilities|knowledge\s+base)\b/,
+    /\b(capabilities\s+and\s+knowledge\s+base|provided\s+information\s+about\s+marlon)\b/,
+    /\bknowledge\s+base\b/,
   ]);
 }
 
