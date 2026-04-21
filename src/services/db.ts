@@ -51,6 +51,14 @@ export function getPool(): Pool {
   return pool;
 }
 
+export async function closeDb(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
+  }
+  warnedLoggingDisabled = false;
+}
+
 export async function initDb(): Promise<void> {
   const status = getDatabaseConfigStatus();
   if (!status.configured) {

@@ -29,8 +29,14 @@ Copy `.env.example` to `.env` and fill in your values:
 | `OLLAMA_NUM_CTX` | no | Optional Ollama context window override, useful for larger local models |
 | `VERCEL_SHARED_API_KEY` | yes | Secret shared with your Vercel API route |
 | `ALLOWED_ORIGIN` | no | If set, rejects requests with a different `Origin` header |
+| `TRUST_PROXY_HOPS` | no | Number of trusted reverse-proxy hops before this server. Default: `1` |
 | `SYSTEM_PROMPT_FILE` | no | Path to system prompt (default: `prompts/system-prompt.md`) |
 | `PROFILE_CONTEXT_FILE` | no | Path to profile context (default: `data/profile-context.md`) |
+| `MYSQL_HOST` | no | MySQL host for interaction logging |
+| `MYSQL_PORT` | no | MySQL port for interaction logging. Default: `3306` |
+| `MYSQL_USER` | no | MySQL user for interaction logging |
+| `MYSQL_PASSWORD` | no | MySQL password for interaction logging |
+| `MYSQL_DATABASE` | no | MySQL database that contains `interactions` and `ip_blocklist` |
 
 ---
 
@@ -66,7 +72,23 @@ npm run build && npm start
 
 # Guardrail regression tests
 npm test
+
+# POP2/MySQL logging integration test
+$env:RUN_DB_INTEGRATION_TESTS='1'
+$env:POP2_MYSQL_PASSWORD='<pop2 password>'
+npm run test:db
+
+# Optional: run the same DB assertion through the deployed Vercel API
+$env:API_UNDER_TEST_URL='https://marlonbbernal.com/api/ask-me'
+npm run test:db
 ```
+
+The database integration test starts the API on a random local port, posts to
+`/ask-me`, and then verifies the saved row in `marlonai_logs.interactions`.
+It uses POP2 defaults for host, port, user, and database unless `MYSQL_*` or
+`POP2_MYSQL_*` environment variables override them. Set `API_UNDER_TEST_URL`
+when you want the same assertion to go through a deployed API instead of the
+local Express app.
 
 ---
 
